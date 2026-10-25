@@ -1,0 +1,16 @@
+[
+  {
+    "modid": "lunarhavenx",
+    "name": "LunarHavenX Client",
+    "description": "Cliente modular original para Minecraft Forge 1.8.9.",
+    "version": "${version}",
+    "mcversion": "${mcversion}",
+    "url": "",
+    "updateUrl": "",
+    "authorList": ["LunarHavenX Team"],
+    "credits": "Construído sobre Minecraft Forge.",
+    "logoFile": "assets/lunarhavenx/textures/gui/lunarhavenx_logo.png",
+    "screenshots": [],
+    "dependencies": []
+  }
+]

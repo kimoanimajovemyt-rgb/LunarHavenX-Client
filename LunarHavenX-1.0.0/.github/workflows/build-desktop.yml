@@ -1,0 +1,31 @@
+name: Build launcher Windows (.exe)
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Compilar e testar
+        shell: cmd
+        run: scripts\build.bat
+      - name: Instalador .exe (jpackage)
+        shell: cmd
+        run: |
+          jpackage --type exe --input dist --main-jar LunarHavenX-Launcher.jar --main-class com.lunarhavenx.launcher.desktop.Main --name LunarHavenX --app-version 1.0.0 --vendor LunarHavenX --icon launcher-desktop\src\main\resources\assets\icon.ico --win-menu --win-shortcut --win-dir-chooser --dest release
+      - name: Versão portátil (pasta com .exe)
+        shell: cmd
+        run: |
+          jpackage --type app-image --input dist --main-jar LunarHavenX-Launcher.jar --main-class com.lunarhavenx.launcher.desktop.Main --name LunarHavenX --app-version 1.0.0 --icon launcher-desktop\src\main\resources\assets\icon.ico --dest portable
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LunarHavenX-Windows
+          path: |
+            release/*.exe
+            portable/

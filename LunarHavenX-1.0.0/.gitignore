@@ -1,0 +1,10 @@
+.gradle/
+build/
+dist/
+release/
+portable/
+launcher-core/build/
+launcher-desktop/build/
+tests/build/
+client-mod/build/
+client-mod/run/

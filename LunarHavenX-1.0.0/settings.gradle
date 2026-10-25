@@ -1,0 +1,3 @@
+rootProject.name = 'LunarHavenX'
+
+include 'launcher-core', 'launcher-desktop', 'tests'

@@ -1,0 +1,86 @@
+plugins {
+    id 'base'
+}
+
+group = 'com.lunarhavenx'
+version = '1.0.0'
+
+allprojects {
+    repositories {
+        mavenCentral()
+    }
+}
+
+subprojects {
+    apply plugin: 'java'
+
+    group = rootProject.group
+    version = rootProject.version
+
+    java {
+        toolchain {
+            languageVersion = JavaLanguageVersion.of(17)
+        }
+    }
+
+    tasks.withType(JavaCompile).configureEach {
+        options.encoding = 'UTF-8'
+        options.release = 17
+    }
+}
+
+project(':launcher-desktop') {
+    dependencies {
+        implementation project(':launcher-core')
+    }
+
+    tasks.named('jar', Jar) {
+        manifest {
+            attributes 'Main-Class': 'com.lunarhavenx.launcher.desktop.Main'
+        }
+        // O launcher-core é código próprio; incluir sua saída mantém o JAR executável
+        // sem introduzir bibliotecas externas.
+        from project(':launcher-core').sourceSets.main.output
+    }
+
+    tasks.register('run', JavaExec) {
+        group = 'application'
+        description = 'Executa a interface desktop do LunarHavenX.'
+        dependsOn tasks.named('classes')
+        classpath = sourceSets.main.runtimeClasspath
+        mainClass = 'com.lunarhavenx.launcher.desktop.Main'
+    }
+}
+
+project(':tests') {
+    sourceSets {
+        main {
+            java.setSrcDirs(['src'])
+            resources.setSrcDirs([])
+        }
+    }
+
+    dependencies {
+        implementation project(':launcher-core')
+    }
+
+    tasks.register('coreTest', JavaExec) {
+        group = 'verification'
+        description = 'Executa os testes offline do launcher-core.'
+        dependsOn tasks.named('classes')
+        classpath = sourceSets.main.runtimeClasspath
+        mainClass = 'CoreTests'
+    }
+
+    tasks.named('check') {
+        dependsOn tasks.named('coreTest')
+    }
+}
+
+tasks.named('check') {
+    dependsOn subprojects.collect { it.tasks.named('check') }
+}
+
+tasks.named('build') {
+    dependsOn subprojects.collect { it.tasks.named('build') }
+}
