@@ -1,0 +1,86 @@
+name: Publish browsable LunarHavenX source tree
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish-source:
+    name: Extract source archive and publish files
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o repositório
+        uses: actions/checkout@v4
+
+      - name: Extrair a fonte sem sobrescrever arquivos existentes
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          import shutil
+          import stat
+          import tempfile
+
+          archive = Path("LunarHavenX-1.0.0-fonte-completo-com-referencia.zip")
+          destination = Path("LunarHavenX-1.0.0")
+          if not archive.is_file():
+              raise SystemExit(f"Arquivo de fonte ausente: {archive}")
+          if destination.exists():
+              raise SystemExit(f"Destino já existe; não vou sobrescrever: {destination}")
+
+          with tempfile.TemporaryDirectory(prefix="lhx-source-") as temp:
+              staging = Path(temp).resolve()
+              with ZipFile(archive) as bundle:
+                  for entry in bundle.infolist():
+                      target = (staging / entry.filename).resolve()
+                      if target != staging and staging not in target.parents:
+                          raise SystemExit(f"Caminho inseguro no ZIP: {entry.filename}")
+                      mode = entry.external_attr >> 16
+                      if stat.S_ISLNK(mode):
+                          raise SystemExit(f"Link simbólico não permitido no ZIP: {entry.filename}")
+                  bundle.extractall(staging)
+
+              source_tree = staging / "LunarHavenX-1.0.0"
+              if not source_tree.is_dir():
+                  raise SystemExit("A pasta LunarHavenX-1.0.0 não foi encontrada dentro do ZIP.")
+              shutil.copytree(source_tree, destination)
+          PY
+
+      - name: Adicionar contexto para continuidade do projeto
+        shell: bash
+        run: |
+          cat > CLAUDE.md <<'EOF'
+          # Contexto de continuidade para Claude
+
+          Este repositório agora contém uma árvore de fontes navegável em `LunarHavenX-1.0.0/`. Preserve a distinção entre launcher e mod ao planejar mudanças.
+
+          ## Estado verificado
+
+          - `LunarHavenX-1.0.0/launcher-core/` e `launcher-desktop/` são as fontes disponíveis do launcher desktop; a configuração Gradle raiz declara 1.0.0.
+          - `LunarHavenX-1.0.0/client-mod/` é um mod Forge para Minecraft Java 1.8.9; o `build.gradle` e as fontes atuais declaram 0.5.9-alpha.
+          - A execução do GitHub Actions [#1](https://github.com/kimoanimajovemyt-rgb/LunarHavenX-Client/actions/runs/40146851092) compilou e publicou o artefato do mod 0.5.9-alpha. Isso não confirma execução dentro do Minecraft.
+          - Não há módulo Android do launcher nem APK neste snapshot. `docs/PLANO-ANDROID-IOS.md` descreve planejamento, não implementação.
+
+          ## Direção do produto
+
+          O objetivo informado pelo proprietário é continuar o LunarHavenX como launcher independente para PC, com Android planejado. Trate isso como objetivo futuro: o mod Forge existente não é, por si só, um launcher independente. Inspecione o código antes de propor alterações e não declare suporte, builds ou testes que não foram realizados.
+          EOF
+
+          cat >> README.md <<'EOF'
+
+          ## Código-fonte navegável
+
+          A árvore de fontes está em [`LunarHavenX-1.0.0/`](LunarHavenX-1.0.0/). O `1.0.0` da configuração raiz corresponde ao launcher/projeto; o código-fonte atual do mod Forge continua em `0.5.9-alpha`. Consulte [`CLAUDE.md`](CLAUDE.md) para o estado verificado e a direção de desenvolvimento.
+          EOF
+
+      - name: Registrar e publicar a árvore de fontes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- LunarHavenX-1.0.0 CLAUDE.md README.md
+          git commit -m "Publish browsable LunarHavenX source tree"
+          git push origin HEAD:main
