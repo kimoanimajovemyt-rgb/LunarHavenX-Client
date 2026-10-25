@@ -1,0 +1,70 @@
+name: Build LunarHavenX Client 1.8.9 (Forge)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-client:
+    name: Compile Forge mod (JDK 8 / Gradle 2.7)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Baixar o repositório
+        uses: actions/checkout@v4
+
+      - name: Preparar JDK 8
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '8'
+
+      - name: Localizar as fontes do mod
+        id: source
+        shell: bash
+        run: |
+          if [[ -d "client-mod" ]]; then
+            MOD_DIR="client-mod"
+          elif [[ -f "LunarHavenX-1.0.0-fonte-completo-com-referencia.zip" ]]; then
+            mkdir -p .github-build/source
+            python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+
+          archive = Path("LunarHavenX-1.0.0-fonte-completo-com-referencia.zip")
+          destination = Path(".github-build/source").resolve()
+          with ZipFile(archive) as bundle:
+              for member in bundle.infolist():
+                  output = (destination / member.filename).resolve()
+                  if output != destination and destination not in output.parents:
+                      raise SystemExit(f"Caminho inseguro no ZIP: {member.filename}")
+              bundle.extractall(destination)
+          PY
+            MOD_DIR=".github-build/source/LunarHavenX-1.0.0/client-mod"
+          else
+            echo "::error::Não encontrei client-mod/ nem o ZIP de fontes esperado na raiz."
+            exit 1
+          fi
+
+          if [[ ! -f "$MOD_DIR/gradlew" || ! -f "$MOD_DIR/build.gradle" ]]; then
+            echo "::error::O projeto Forge não contém gradlew ou build.gradle."
+            exit 1
+          fi
+          chmod +x "$MOD_DIR/gradlew"
+          echo "mod_dir=$MOD_DIR" >> "$GITHUB_OUTPUT"
+          echo "jar_path=$MOD_DIR/build/libs/LunarHavenX-Client-1.8.9-0.5.9-alpha.jar" >> "$GITHUB_OUTPUT"
+
+      - name: Compilar o mod Forge 1.8.9
+        working-directory: ${{ steps.source.outputs.mod_dir }}
+        run: |
+          ./gradlew --no-daemon --stacktrace setupDecompWorkspace build
+
+      - name: Publicar o JAR compilado
+        uses: actions/upload-artifact@v4
+        with:
+          name: LunarHavenX-Client-0.5.9-alpha
+          path: ${{ steps.source.outputs.jar_path }}
+          if-no-files-found: error
+          retention-days: 14
