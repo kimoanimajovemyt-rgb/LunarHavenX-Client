@@ -1,0 +1,3 @@
+[submodule "LunarHavenX-1.0.0/launcher-android/upstream"]
+    path = LunarHavenX-1.0.0/launcher-android/upstream
+    url = https://github.com/ZalithLauncher/ZalithLauncher2.git

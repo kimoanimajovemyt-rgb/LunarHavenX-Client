@@ -1,0 +1,57 @@
+name: Build LunarHavenX Android debug APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [dev/launcher]
+    paths:
+      - ".gitmodules"
+      - "LunarHavenX-1.0.0/launcher-android/**"
+      - "LunarHavenX-1.0.0/docs/PLANO-ANDROID-IOS.md"
+      - ".github/workflows/build-launcher-android.yml"
+permissions:
+  contents: read
+jobs:
+  build-android:
+    name: Compile Android debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Baixar repositório e submódulo
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+          fetch-depth: 0
+      - name: Preparar JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Preparar Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Instalar SDK e NDK exigidos pelo upstream
+        shell: bash
+        run: |
+          sdkmanager "platforms;android-37" "platforms;android-37-ext2" "build-tools;37.0.0" "ndk;25.2.9519653"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/25.2.9519653" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/25.2.9519653" >> "$GITHUB_ENV"
+      - name: Preparar Rust e ABIs Android
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android, armv7-linux-androideabi, i686-linux-android, x86_64-linux-android
+      - name: Instalar cargo-ndk
+        run: cargo install cargo-ndk --locked
+      - name: Aplicar marca e remover assinatura upstream
+        run: python3 LunarHavenX-1.0.0/launcher-android/scripts/prepare_upstream.py LunarHavenX-1.0.0/launcher-android/upstream
+      - name: Compilar APK debug
+        working-directory: LunarHavenX-1.0.0/launcher-android/upstream
+        shell: bash
+        run: |
+          chmod +x ./gradlew
+          ./gradlew --no-daemon :ZalithLauncher:assembleDebug
+      - name: Publicar APK debug para teste
+        uses: actions/upload-artifact@v4
+        with:
+          name: LunarHavenX-Android-debug
+          path: LunarHavenX-1.0.0/launcher-android/upstream/ZalithLauncher/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
